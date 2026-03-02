@@ -68,3 +68,108 @@ int main() {
 Вектор b:
 6 6 6
 omega (0<ω<2), eps, maxIter: 1.2 0.0001 100
+
+zad 2 
+
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <iomanip>
+
+using namespace std;
+
+// Решение трёхдиагональной системы методом прогонки
+vector<double> solveTridiagonal(const vector<double>& a, const vector<double>& b,
+                                const vector<double>& c, const vector<double>& d) {
+    int n = d.size();
+    vector<double> P(n - 1), Q(n - 1), x(n);
+    P[0] = -c[0] / b[0];
+    Q[0] = d[0] / b[0];
+    for (int i = 1; i < n - 1; i++) {
+        double denom = b[i] + a[i] * P[i - 1];
+        P[i] = -c[i] / denom;
+        Q[i] = (d[i] - a[i] * Q[i - 1]) / denom;
+    }
+    x[n - 1] = (d[n - 1] - a[n - 1] * Q[n - 2]) / (b[n - 1] + a[n - 1] * P[n - 2]);
+    for (int i = n - 2; i >= 0; i--) x[i] = P[i] * x[i + 1] + Q[i];
+    return x;
+}
+
+// Кубический сплайн
+class CubicSpline {
+    vector<double> x, a, b, c, d;
+public:
+    CubicSpline(const vector<double>& x_nodes, const vector<double>& y_nodes) : x(x_nodes), a(y_nodes) {
+        int n = x.size();
+        vector<double> h(n - 1);
+        for (int i = 0; i < n - 1; i++) h[i] = x[i + 1] - x[i];
+
+        // Построение системы для c (внутренние узлы)
+        int m = n - 2;
+        if (m > 0) {
+            vector<double> a_sub(m), b_diag(m), c_super(m), d_rhs(m);
+            for (int i = 1; i <= m; i++) {
+                double rhs = 3.0 * ((a[i + 1] - a[i]) / h[i] - (a[i] - a[i - 1]) / h[i - 1]);
+                a_sub[i - 1] = h[i - 1];
+                b_diag[i - 1] = 2.0 * (h[i - 1] + h[i]);
+                c_super[i - 1] = h[i];
+                d_rhs[i - 1] = rhs;
+            }
+            vector<double> c_inner = solveTridiagonal(a_sub, b_diag, c_super, d_rhs);
+            c.assign(n, 0.0);
+            for (int i = 0; i < m; i++) c[i + 1] = c_inner[i];
+        } else {
+            c.assign(n, 0.0); // линейный сплайн
+        }
+
+        // Вычисление b и d
+        b.resize(n - 1);
+        d.resize(n - 1);
+        for (int i = 0; i < n - 1; i++) {
+            d[i] = (c[i + 1] - c[i]) / (3.0 * h[i]);
+            b[i] = (a[i + 1] - a[i]) / h[i] - h[i] * (c[i + 1] + 2.0 * c[i]) / 3.0;
+        }
+    }
+
+    double interpolate(double x_val) const {
+        int i = 0;
+        while (i < (int)x.size() - 1 && x_val > x[i + 1]) i++;
+        double dx = x_val - x[i];
+        return a[i] + b[i] * dx + c[i] * dx * dx + d[i] * dx * dx * dx;
+    }
+
+    void printCoefficients() const {
+        cout << "Интервал\t a_i\t\t b_i\t\t c_i\t\t d_i\n";
+        for (size_t i = 0; i < x.size() - 1; i++)
+            cout << "[" << x[i] << "; " << x[i + 1] << "]\t" << fixed << setprecision(4)
+                 << a[i] << "\t" << b[i] << "\t" << c[i] << "\t" << d[i] << endl;
+    }
+
+    void exportToCSV(const string& filename, double xmin, double xmax, int points = 500) const {
+        ofstream file(filename);
+        file << "x,y\n";
+        double step = (xmax - xmin) / (points - 1);
+        for (int i = 0; i < points; i++) {
+            double xv = xmin + i * step;
+            file << xv << "," << interpolate(xv) << "\n";
+        }
+    }
+};
+
+// Пример использования
+int main() {
+    vector<double> x = {0.0, 0.5, 1.0, 1.5, 2.0};
+    vector<double> y = {0.0, 0.25, 1.0, 2.25, 4.0}; // y = x^2
+
+    CubicSpline spline(x, y);
+    spline.printCoefficients();
+
+    double test = 1.2;
+    cout << "\nSpline(1.2) = " << spline.interpolate(test)
+         << " (точное значение: " << test * test << ")\n";
+
+    spline.exportToCSV("spline_data.csv", x.front(), x.back());
+    cout << "\nФайл spline_data.csv создан. Импортируйте его в Excel и постройте точечную диаграмму.\n";
+
+    return 0;
+}
