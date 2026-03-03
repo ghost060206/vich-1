@@ -199,3 +199,21 @@ int main() {
     return 0;
 }
 
+void exportToCSV(const string& filename, double xmin, double xmax, int points = 500) const {
+    ofstream file(filename);
+    
+    // Записываем заголовки (для Excel важно, чтобы они были на русском или английском)
+    file << "x;y\n";  // Используем точку с запятой как разделитель для русской локали Excel
+    
+    double step = (xmax - xmin) / (points - 1);
+    for (int i = 0; i < points; i++) {
+        double xv = xmin + i * step;
+        // Форматируем числа с точкой в качестве десятичного разделителя
+        file << fixed << setprecision(6) << xv << ";" << interpolate(xv) << "\n";
+    }
+    
+    file.close();
+    cout << "Файл " << filename << " создан. При открытии в Excel:\n";
+    cout << "1. Выберите разделитель ';' (точка с запятой)\n";
+    cout << "2. Данные будут в двух столбцах x и y\n";
+}
