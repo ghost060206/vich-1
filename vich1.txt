@@ -1,1 +1,171 @@
-setlocale(LC_ALL, "Russian"
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <string>
+
+using namespace std;
+
+// Решение трёхдиагональной системы методом прогонки
+vector<double> solveTridiagonal(const vector<double>& a, const vector<double>& b,
+                                const vector<double>& c, const vector<double>& d) {
+    int n = d.size();
+    vector<double> P(n - 1), Q(n - 1), x(n);
+    P[0] = -c[0] / b[0];
+    Q[0] = d[0] / b[0];
+    for (int i = 1; i < n - 1; i++) {
+        double denom = b[i] + a[i] * P[i - 1];
+        P[i] = -c[i] / denom;
+        Q[i] = (d[i] - a[i] * Q[i - 1]) / denom;
+    }
+    x[n - 1] = (d[n - 1] - a[n - 1] * Q[n - 2]) / (b[n - 1] + a[n - 1] * P[n - 2]);
+    for (int i = n - 2; i >= 0; i--) x[i] = P[i] * x[i + 1] + Q[i];
+    return x;
+}
+
+// Класс кубического сплайна
+class CubicSpline {
+private:
+    vector<double> x, a, b, c, d;
+
+public:
+    // Конструктор принимает узлы x и значения y
+    CubicSpline(const vector<double>& x_nodes, const vector<double>& y_nodes) : x(x_nodes), a(y_nodes) {
+        int n = x.size();
+        vector<double> h(n - 1);
+        for (int i = 0; i < n - 1; i++) h[i] = x[i + 1] - x[i];
+
+        // Построение системы для коэффициентов c (вторые производные)
+        int m = n - 2;
+        if (m > 0) {
+            vector<double> a_sub(m), b_diag(m), c_super(m), d_rhs(m);
+            for (int i = 1; i <= m; i++) {
+                double rhs = 3.0 * ((a[i + 1] - a[i]) / h[i] - (a[i] - a[i - 1]) / h[i - 1]);
+                a_sub[i - 1] = h[i - 1];
+                b_diag[i - 1] = 2.0 * (h[i - 1] + h[i]);
+                c_super[i - 1] = h[i];
+                d_rhs[i - 1] = rhs;
+            }
+            vector<double> c_inner = solveTridiagonal(a_sub, b_diag, c_super, d_rhs);
+            c.assign(n, 0.0);
+            for (int i = 0; i < m; i++) c[i + 1] = c_inner[i];
+        } else {
+            c.assign(n, 0.0); // линейный сплайн при двух точках
+        }
+
+        // Вычисление коэффициентов b и d
+        b.resize(n - 1);
+        d.resize(n - 1);
+        for (int i = 0; i < n - 1; i++) {
+            d[i] = (c[i + 1] - c[i]) / (3.0 * h[i]);
+            b[i] = (a[i + 1] - a[i]) / h[i] - h[i] * (c[i + 1] + 2.0 * c[i]) / 3.0;
+        }
+    }
+
+    // Интерполяция в произвольной точке
+    double interpolate(double x_val) const {
+        int i = 0;
+        while (i < (int)x.size() - 1 && x_val > x[i + 1]) i++;
+        double dx = x_val - x[i];
+        return a[i] + b[i] * dx + c[i] * dx * dx + d[i] * dx * dx * dx;
+    }
+
+    // Печать коэффициентов сплайнов на каждом интервале
+    void printCoefficients() const {
+        cout << "Интервал\t a_i\t\t b_i\t\t c_i\t\t d_i\n";
+        for (size_t i = 0; i < x.size() - 1; i++) {
+            cout << "[" << x[i] << "; " << x[i + 1] << "]\t"
+                 << fixed << setprecision(4) << a[i] << "\t"
+                 << b[i] << "\t" << c[i] << "\t" << d[i] << endl;
+        }
+    }
+
+    // Экспорт в файл для Excel (два столбца, десятичная запятая)
+    void exportToExcel(const string& filename, double xmin, double xmax, int points = 500) const {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cerr << "Ошибка создания файла!" << endl;
+            return;
+        }
+
+        // Заголовки столбцов
+        file << "x;y\n";
+
+        double step = (xmax - xmin) / (points - 1);
+        for (int i = 0; i < points; i++) {
+            double xv = xmin + i * step;
+            double yv = interpolate(xv);
+
+            // Преобразуем числа в строки с запятой в качестве десятичного разделителя
+            stringstream ss;
+            ss << fixed << setprecision(6) << xv;
+            string x_str = ss.str();
+            ss.str("");
+            ss << fixed << setprecision(6) << yv;
+            string y_str = ss.str();
+
+            // Заменяем точки на запятые
+            for (char& ch : x_str) if (ch == '.') ch = ',';
+            for (char& ch : y_str) if (ch == '.') ch = ',';
+
+            file << x_str << ";" << y_str << "\n";
+        }
+
+        file.close();
+        cout << "\nФайл " << filename << " успешно создан.\n";
+        cout << "Формат: два столбца, разделитель ';', десятичный разделитель ','\n";
+        cout << "Откройте его в Excel двойным щелчком — данные отобразятся корректно.\n";
+    }
+};
+
+// Вспомогательная функция для ввода строки чисел
+vector<double> inputNumbers(const string& prompt) {
+    cout << prompt;
+    string line;
+    getline(cin, line);
+    istringstream iss(line);
+    vector<double> result;
+    double val;
+    while (iss >> val) {
+        result.push_back(val);
+    }
+    return result;
+}
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+
+    cout << "=== КУБИЧЕСКАЯ СПЛАЙН-ИНТЕРПОЛЯЦИЯ ===\n\n";
+
+    // Ввод данных от пользователя
+    vector<double> x = inputNumbers("Введите узлы x (через пробел): ");
+    vector<double> y = inputNumbers("Введите значения y (через пробел): ");
+
+    if (x.size() != y.size()) {
+        cout << "Ошибка: количество x и y должно совпадать!\n";
+        return 1;
+    }
+    if (x.size() < 2) {
+        cout << "Ошибка: нужно минимум две точки!\n";
+        return 1;
+    }
+
+    // Построение сплайна
+    CubicSpline spline(x, y);
+
+    // Вывод коэффициентов
+    cout << "\nКоэффициенты сплайнов:\n";
+    spline.printCoefficients();
+
+    // Проверка в средней точке
+    double mid = (x.front() + x.back()) / 2.0;
+    cout << "\nЗначение сплайна в точке x = " << mid << ": " << spline.interpolate(mid) << endl;
+
+    // Экспорт в Excel-файл
+    spline.exportToExcel("spline_data.csv", x.front(), x.back(), 500);
+
+    cout << "\nПрограмма завершена. Импортируйте файл в Excel и постройте точечную диаграмму.\n";
+    return 0;
+}
+
