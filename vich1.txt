@@ -1,4 +1,19 @@
-                        ss << fixed << setprecision(6) << xv;
+
+https://1drv.ms/w/c/f1af8425b0a8f1d0/IQA3_YRMp7GeTqyNkbXvd0IAAeaIyluhvkGCJ7xqOO4OUwA?e=tpgVbQ
+
+
+
+
+
+
+
+
+
+
+
+
+
+ss << fixed << setprecision(6) << xv;
             string x_str = ss.str();
             ss.str("");
             ss << fixed << setprecision(6) << yv;
