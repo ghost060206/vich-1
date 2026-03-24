@@ -2093,7 +2093,207 @@ int main() {
 
 
 
+#include <iostream>
+#include <cmath>
+#include <functional>
+#include <iomanip>
+#include <limits>
 
+using namespace std;
+
+// Класс для интегрирования методом прямоугольников
+class RectangleIntegration {
+    function<double(double)> f;
+    double a;
+    int n;
+public:
+    RectangleIntegration(function<double(double)> func, double lower, int intervals) 
+        : f(func), a(lower), n(intervals) {}
+
+    double leftRectangles(double x) {
+        if (x == a) return 0;
+        double h = (x - a) / n, sum = 0;
+        for (int i = 0; i < n; ++i) sum += f(a + i * h);
+        return sum * h;
+    }
+
+    double rightRectangles(double x) {
+        if (x == a) return 0;
+        double h = (x - a) / n, sum = 0;
+        for (int i = 1; i <= n; ++i) sum += f(a + i * h);
+        return sum * h;
+    }
+
+    double middleRectangles(double x) {
+        if (x == a) return 0;
+        double h = (x - a) / n, sum = 0;
+        for (int i = 0; i < n; ++i) sum += f(a + (i + 0.5) * h);
+        return sum * h;
+    }
+};
+
+// Решатель уравнения ∫_a^x f(t) dt = b
+class EquationSolver {
+    function<double(double)> f;
+    double a, b;
+    int n_int;
+    double tol;
+    int max_iter;
+    RectangleIntegration integrator;
+    double (RectangleIntegration::*integralMethod)(double);
+
+    double F(double x) {
+        return (integrator.*integralMethod)(x) - b;
+    }
+
+    // Поиск интервала, содержащего корень
+    void findInterval(double& left, double& right) {
+        if (abs(b) < 1e-12) { left = right = a; return; }
+
+        int dir = (b > 0) ? 1 : -1;
+        double step = 1.0;
+        left = a;
+        while (true) {
+            right = a + dir * step;
+            if (F(left) * F(right) <= 0) {
+                if (left > right) swap(left, right);
+                return;
+            }
+            step *= 2;
+            left = right;
+            if (abs(right - a) > 1e7) 
+                throw runtime_error("Не найден интервал с корнем");
+        }
+    }
+
+public:
+    EquationSolver(function<double(double)> func, double lower, double right,
+                   string method = "middle", int intervals = 100,
+                   double tolerance = 1e-6, int maxIter = 100)
+        : f(func), a(lower), b(right), n_int(intervals), tol(tolerance),
+          max_iter(maxIter), integrator(func, lower, intervals) {
+        if (method == "left")
+            integralMethod = &RectangleIntegration::leftRectangles;
+        else if (method == "right")
+            integralMethod = &RectangleIntegration::rightRectangles;
+        else
+            integralMethod = &RectangleIntegration::middleRectangles;
+    }
+
+    double solve(double left = -1, double right = -1) {
+        if (abs(b) < 1e-12) return a;
+
+        if (left == -1 || right == -1) {
+            try { findInterval(left, right); }
+            catch (const exception& e) { throw; }
+        }
+
+        double F_left = F(left), F_right = F(right);
+        if (abs(F_left) < tol) return left;
+        if (abs(F_right) < tol) return right;
+        if (F_left * F_right > 0)
+            throw runtime_error("Нет корня на интервале");
+
+        for (int i = 0; i < max_iter; ++i) {
+            double mid = (left + right) / 2, F_mid = F(mid);
+            if (abs(F_mid) < tol || (right - left) / 2 < tol) return mid;
+            if (F_left * F_mid < 0) { right = mid; F_right = F_mid; }
+            else { left = mid; F_left = F_mid; }
+        }
+        return (left + right) / 2;
+    }
+};
+
+// Тестовые функции
+double f1(double x) { return x * x; }
+double f2(double x) { return sin(x); }
+double f3(double x) { return exp(x); }
+double f4(double x) { return abs(x) < 1e-10 ? 1e10 : 1.0 / x; }
+
+int main() {
+    cout << fixed << setprecision(10);
+    cout << "========================================================\n"
+         << "Решение ∫_a^x f(t) dt = b методом прямоугольников (10а)\n"
+         << "========================================================\n";
+
+    // Демонстрация на трёх примерах
+    struct Test { function<double(double)> f; double a, b; string name; double exact; };
+    Test tests[] = {
+        {f1, 0, 10, "x^2", 3.107232505953859},
+        {f2, 0, 1,  "sin(x)", 1.5707963267948966},
+        {f3, 0, 2,  "exp(x)", 1.0986122886681098}
+    };
+
+    string methods[] = {"left", "right", "middle"};
+    string mnames[] = {"левых", "правых", "средних"};
+
+    for (auto& t : tests) {
+        cout << "\nПример: f(x) = " << t.name << ", a = " << t.a << ", b = " << t.b
+             << "\nТочное решение: " << t.exact << "\n";
+        for (int i = 0; i < 3; ++i) {
+            EquationSolver solver(t.f, t.a, t.b, methods[i], 1000);
+            double x = solver.solve();
+            cout << mnames[i] << " прямоугольники: x = " << x
+                 << ", погрешность = " << scientific << abs(x - t.exact) << fixed << "\n";
+        }
+    }
+
+    // Интерактивный режим
+    cout << "\n========================================================\n"
+         << "Интерактивный режим\n"
+         << "========================================================\n";
+    int choice;
+    do {
+        cout << "\nВыберите функцию:\n"
+             << "1: x^2   2: sin(x)   3: exp(x)   4: 1/x   0: выход\n";
+        cin >> choice;
+        if (choice == 0) break;
+        if (choice < 1 || choice > 4) { cout << "Неверный выбор\n"; continue; }
+
+        function<double(double)> f;
+        string fname;
+        switch (choice) {
+            case 1: f = f1; fname = "x^2"; break;
+            case 2: f = f2; fname = "sin(x)"; break;
+            case 3: f = f3; fname = "exp(x)"; break;
+            case 4: f = f4; fname = "1/x"; break;
+        }
+
+        double a, b_val;
+        cout << "a = "; cin >> a;
+        cout << "b = "; cin >> b_val;
+
+        cout << "Метод (1-левые, 2-правые, 3-средние): ";
+        int m; cin >> m;
+        string method = (m == 1) ? "left" : (m == 2) ? "right" : "middle";
+        string mname = (m == 1) ? "левых" : (m == 2) ? "правых" : "средних";
+
+        int n_int; double tol;
+        cout << "Число разбиений: "; cin >> n_int;
+        cout << "Точность: "; cin >> tol;
+
+        try {
+            EquationSolver solver(f, a, b_val, method, n_int, tol);
+            double x = solver.solve();
+            cout << "\nРезультат:\n"
+                 << "f(x) = " << fname << ", ∫_" << a << "^x " << fname << " dt = " << b_val << "\n"
+                 << "Метод " << mname << " прямоугольников, разбиений = " << n_int << "\n"
+                 << "x = " << x << "\n";
+
+            // Проверка
+            RectangleIntegration check(f, a, n_int);
+            double I = (m == 1) ? check.leftRectangles(x) :
+                        (m == 2) ? check.rightRectangles(x) :
+                                   check.middleRectangles(x);
+            cout << "Проверка: интеграл = " << I << ", невязка = " << scientific << abs(I - b_val) << "\n";
+        } catch (const exception& e) {
+            cout << "Ошибка: " << e.what() << "\n";
+        }
+    } while (true);
+
+    cout << "Программа завершена.\n";
+    return 0;
+}
 
 
 
