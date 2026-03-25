@@ -1,4 +1,18 @@
 
+# Декартовы координаты
+plot(exp(2*(x+1))/(2*(x+1)), x = -3 .. 3, 
+     title = "График в декартовой системе", 
+     labels = ["x", "y"], 
+     discont = true);
+
+# Полярные координаты (r = exp(2(θ+1))/(2(θ+1)))
+polarplot(exp(2*(theta+1))/(2*(theta+1)), theta = -3 .. 3, 
+          title = "График в полярной системе");
+
+
+
+
+
 https://1drv.ms/w/c/f1af8425b0a8f1d0/IQA3_YRMp7GeTqyNkbXvd0IAAeaIyluhvkGCJ7xqOO4OUwA?e=tpgVbQ
 
 
