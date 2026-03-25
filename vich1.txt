@@ -2,12 +2,60 @@
 https://1drv.ms/w/c/f1af8425b0a8f1d0/IQA3_YRMp7GeTqyNkbXvd0IAAeaIyluhvkGCJ7xqOO4OUwA?e=tpgVbQ
 
 
+restart;
+with(LinearAlgebra):
+# Генерируем матрицу 5x7 со случайными целыми числами от -10 до 10
+A := RandomMatrix(5, 7, generator = -10 .. 10);
+# Удаляем 3-й и 5-й столбцы
+B := DeleteColumn(A, [3, 5]);
+# Размер матрицы
+dim := Dimension(B);
+# Ранг матрицы
+r := Rank(B);
+
+printf("Исходная матрица:\n");
+print(A);
+printf("\nМатрица после удаления столбцов 3 и 5:\n");
+print(B);
+printf("\nРазмер матрицы: %a\n", dim);
+printf("Ранг матрицы: %a\n", r);
+
+
+
+A := Matrix([[2, -3], [4, 0]]);
+B := Matrix([[0, -2], [-4, 3]]);
+
+AB := A . B;
+BA := B . A;
+
+if Equal(AB, BA) then
+    printf("Матрицы коммутируют: AB = BA\n");
+else
+    printf("Матрицы не коммутируют\n");
+end if;
+
+printf("AB =\n"); print(AB);
+printf("BA =\n"); print(BA);
 
 
 
 
+f := (1 + sqrt(x))^(1/3) / (x^12 * x^(1/5));
+int_f := int(f, x);
+simplify(int_f);
 
 
+
+limit(cos(x/2) / (sin(x) - exp(sin(4*x))), x = Pi);
+
+
+
+y := (1 - x^2)^(5/3) * sqrt(x^3 + 1/x);
+y1 := diff(y, x);
+y2 := diff(y, x, x);
+
+simplify(y1);
+simplify(y2);
 
 
 
@@ -24,7 +72,32 @@ ss << fixed << setprecision(6) << xv;
             for (char& ch : y_str) if (ch == '.') ch = ',';
 
             file << x_str << ";" << y_str << "\n";
-        }
+   
+
+
+# Декартовы координаты
+plot(cos(1000/x^2)/3, x = -15 .. 15, 
+     title = "График в декартовой системе", 
+     labels = ["x", "y"], 
+     discont = true);
+
+# Полярные координаты (интерпретируем как r = cos(1000/θ^2)/3)
+polarplot(cos(1000/theta^2)/3, theta = -15 .. 15, 
+          title = "График в полярной системе");
+
+
+
+ode := diff(y(x), x) - 2/(x+1)*y(x) = exp(x)*(x+1)^2;
+ic := y(0) = 1;
+sol := dsolve({ode, ic}, y(x));
+simplify(sol);
+
+
+
+
+
+
+}
 
         file.close();
         cout << "\nФайл " << filename << " успешно создан.\n";
