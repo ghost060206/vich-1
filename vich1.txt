@@ -1,3 +1,8 @@
+https://cloud.mail.ru/public/HFuA/3fvw3cQmG/
+
+
+
+
 
 # Декартовы координаты
 plot(exp(2*(x+1))/(2*(x+1)), x = -3 .. 3, 
