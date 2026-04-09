@@ -1,6 +1,23 @@
 https://cloud.mail.ru/public/HFuA/3fvw3cQmG/
 
-
+sudo mkdir -p /scripts
+sudo tee /scripts/resource-demanding1.sh << 'EOF'
+#!/bin/bash
+while true; do
+    echo "scale=1000; 4*a(1)" | bc -l > /dev/null 2>&1
+done
+EOF
+sudo tee /scripts/resource-demanding2.sh << 'EOF'
+#!/bin/bash
+while true; do
+    dd if=/dev/zero of=/dev/null bs=1M count=1024 2>/dev/null
+done
+EOF
+sudo chmod +x /scripts/resource-demanding1.sh /scripts/resource-demanding2.sh
+nice -n 19 /scripts/resource-demanding1.sh &
+sudo nice -n -20 /scripts/resource-demanding2.sh &
+renice -n 10 -p <PID_скрипта>
+pkill -f resource-demanding
 
 
 
