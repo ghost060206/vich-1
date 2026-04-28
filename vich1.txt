@@ -77,7 +77,7 @@ int main() {
 
 
 
-Метод квадратов
+Метод прямоугольников
 
 #include <iostream>
 #include <cmath>
@@ -302,3 +302,85 @@ text
 Функция: любая
 a = 5
 b = 0
+
+
+Метод адамса неявный 2 шага
+
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <iomanip>
+
+double f(double t, double y) { return y; }
+double exact(double t) { return std::exp(t); }
+
+void adam2_explicit(double (*f)(double,double), double y0, double t0, double tend, double h,
+                    std::vector<double>& t, std::vector<double>& y) {
+    int n = (int)((tend - t0)/h + 0.5);
+    t.resize(n+1); y.resize(n+1);
+    t[0]=t0; y[0]=y0;
+    // старт явным Эйлером
+    double t1=t0+h, y1=y0+h*f(t0,y0);
+    t[1]=t1; y[1]=y1;
+    double fp = f(t0,y0), fc = f(t1,y1);
+    for (int i=1; i<n; ++i) {
+        double tn = t[i] + h;
+        double yn = y[i] + h/2.0 * (3.0*fc - fp);
+        t[i+1]=tn; y[i+1]=yn;
+        fp = fc;
+        fc = f(tn, yn);
+    }
+}
+
+void adam2_implicit(double (*f)(double,double), double y0, double t0, double tend, double h,
+                    int maxit, double tol,
+                    std::vector<double>& t, std::vector<double>& y) {
+    int n = (int)((tend - t0)/h + 0.5);
+    t.resize(n+1); y.resize(n+1);
+    t[0]=t0; y[0]=y0;
+    double t1=t0+h, y1=y0+h*f(t0,y0);
+    t[1]=t1; y[1]=y1;
+    double fp = f(t0,y0), fc = f(t1,y1);
+    for (int i=1; i<n; ++i) {
+        double tn = t[i] + h;
+        double yn = y[i] + h/2.0 * (3.0*fc - fp); // прогноз
+        for (int it=0; it<maxit; ++it) {
+            double fn = f(tn, yn);
+            double yn_new = y[i] + h/12.0 * (5.0*fn + 8.0*fc - fp);
+            if (std::abs(yn_new - yn) < tol) { yn = yn_new; break; }
+            yn = yn_new;
+        }
+        t[i+1]=tn; y[i+1]=yn;
+        fp = fc;
+        fc = f(tn, yn);
+    }
+}
+
+int main() {
+    double t0=0, tend=1, h=0.1, y0=1;
+    std::vector<double> t_exp, y_exp, t_imp, y_imp;
+    
+    auto print = [](const std::vector<double>& t, const std::vector<double>& y) {
+        std::cout << std::fixed << std::setprecision(6);
+        std::cout << "t\tЧисл.\tТочн.\tОшибка\n";
+        double maxe=0;
+        for (size_t i=0; i<t.size(); ++i) {
+            double ex = exact(t[i]);
+            double e = std::abs(y[i]-ex);
+            if(e>maxe) maxe=e;
+            std::cout << t[i] << '\t' << y[i] << '\t' << ex << '\t' << e << '\n';
+        }
+        std::cout << "Max error: " << maxe << "\n\n";
+    };
+    
+    std::cout << "=== Явный 2-шаговый Адамс ===\n";
+    adam2_explicit(f, y0, t0, tend, h, t_exp, y_exp);
+    print(t_exp, y_exp);
+    
+    std::cout << "=== Неявный 2-шаговый Адамс ===\n";
+    adam2_implicit(f, y0, t0, tend, h, 20, 1e-10, t_imp, y_imp);
+    print(t_imp, y_imp);
+    
+    return 0;
+}
+
