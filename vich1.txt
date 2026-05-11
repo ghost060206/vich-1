@@ -269,62 +269,105 @@ double g(double x) {
 }
 
 // Метод Вегстейна
-double wegstein(double x0, double eps, int maxIter, bool &converged) {
-    double x = x0;
-    double xPrev;
-    int iter = 0;
-    converged = true;
+#include <iostream>
+#include <cmath>
+#include <functional>
+#include <iomanip>
 
-    cout << fixed << setprecision(12);
-    cout << "Начальное приближение: x0 = " << x0 << endl;
+using namespace std;
 
-    do {
-        double y = g(x);           // g(x_n)
-        double z = g(y);           // g(g(x_n))
-
-        double denom = z - 2*y + x;
-
-        if (fabs(denom) < 1e-12) {
-            // Если знаменатель близок к нулю, делаем шаг простой итерации
-            xPrev = x;
-            x = y;
-            cout << "Итерация " << iter+1 << " (simple): x = " << x 
-                 << ", f(x) = " << f(x) << endl;
-        } else {
-            xPrev = x;
-            x = x - (y - x)*(y - x) / denom;
-            cout << "Итерация " << iter+1 << ": x = " << x 
-                 << ", f(x) = " << f(x) << endl;
-        }
-
-        iter++;
-        if (iter >= maxIter) {
-            converged = false;
-            break;
-        }
-    } while (fabs(x - xPrev) > eps);
-
-    return x;
+// Интегрирование методом средних прямоугольников
+double integrate(function<double(double)> f, double a, double x, int n) {
+    if (x == a) return 0;
+    double h = (x - a) / n;
+    double sum = 0;
+    for (int i = 0; i < n; ++i)
+        sum += f(a + (i + 0.5) * h);
+    return sum * h;
 }
 
+// Невязка
+double F(function<double(double)> f, double a, double b, double x, int n) {
+    return integrate(f, a, x, n) - b;
+}
+
+// Решение уравнения методом бисекции
+double solve(function<double(double)> f, double a, double b, int n_int, double tol) {
+    if (abs(b) < 1e-12) return a;
+
+    // Поиск интервала
+    double left = a, right = a;
+    double step = 1.0;
+    int dir = (b > 0) ? 1 : -1;
+    while (true) {
+        right = a + dir * step;
+        if (F(f, a, b, left, n_int) * F(f, a, b, right, n_int) <= 0)
+            break;
+        step *= 2;
+        left = right;
+        if (abs(right - a) > 1e7)
+            throw runtime_error("Интервал не найден");
+    }
+    if (left > right) swap(left, right);
+
+    // Бисекция
+    for (int i = 0; i < 100; ++i) {
+        double mid = (left + right) / 2;
+        double Fmid = F(f, a, b, mid, n_int);
+        if (abs(Fmid) < tol || (right - left) / 2 < tol)
+            return mid;
+        if (F(f, a, b, left, n_int) * Fmid < 0)
+            right = mid;
+        else
+            left = mid;
+    }
+    return (left + right) / 2;
+}
+
+// Предопределённые функции
+double f1(double x) { return x * x; }
+double f2(double x) { return sin(x); }
+double f3(double x) { return exp(x); }
+double f4(double x) { return abs(x) < 1e-10 ? 1e10 : 1.0 / x; }
+
 int main() {
-    double x0 = 1.5;          // начальное приближение
-    double eps = 1e-12;       // точность по разности приближений
-    int maxIter = 50;         // максимум итераций
-    bool converged;
+    cout << fixed << setprecision(10);
+    cout << "Решение ∫_a^x f(t) dt = b методом средних прямоугольников\n";
 
-    double root = wegstein(x0, eps, maxIter, converged);
+    int choice;
+    cout << "Выберите функцию:\n1: x^2\n2: sin(x)\n3: exp(x)\n4: 1/x\n";
+    cin >> choice;
 
-    if (converged) {
-        cout << "\nКорень найден: x = " << setprecision(12) << root << endl;
-        cout << "f(x) = " << f(root) << endl;
-    } else {
-        cout << "\nМетод не сошёлся за " << maxIter << " итераций." << endl;
+    function<double(double)> f;
+    string fname;
+    switch (choice) {
+        case 1: f = f1; fname = "x^2"; break;
+        case 2: f = f2; fname = "sin(x)"; break;
+        case 3: f = f3; fname = "exp(x)"; break;
+        case 4: f = f4; fname = "1/x"; break;
+        default: return 1;
+    }
+
+    double a, b_val;
+    int n_int;
+    double tol;
+
+    cout << "a = "; cin >> a;
+    cout << "b = "; cin >> b_val;
+    cout << "Число разбиений (например, 1000): "; cin >> n_int;
+    cout << "Точность (например, 1e-6): "; cin >> tol;
+
+    try {
+        double x = solve(f, a, b_val, n_int, tol);
+        cout << "Решение: x = " << x << "\n";
+        double I = integrate(f, a, x, n_int);
+        cout << "Проверка: интеграл = " << I << ", невязка = " << scientific << abs(I - b_val) << "\n";
+    } catch (const exception& e) {
+        cout << "Ошибка: " << e.what() << "\n";
     }
 
     return 0;
 }
-
 
 
 Метод прямоугольников
