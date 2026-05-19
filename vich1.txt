@@ -87,7 +87,7 @@ int main() {
     cout << fixed << setprecision(10);
     cout << "Решение ∫_a^x f(t) dt = b методом средних прямоугольников\n";
 
-    int choice;
+    int choice;0
     cout << "Выберите функцию:\n1: x^2\n2: sin(x)\n3: exp(x)\n4: 1/x\n";
     cin >> choice;
 
@@ -459,3 +459,115 @@ int maxit = 20; double tol = 1e-10;
 Шаг больше интервала:
 double t0 = 0.0, tend = 0.5, y0 = 1.0, h = 1.0;
 int maxit = 20; double tol = 1e-10;
+
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <iomanip>
+#include <fstream>
+
+// Правая часть ОДУ (меняйте здесь для другой задачи)
+double f(double t, double y) {
+    return y;  // y' = y
+}
+
+// Точное решение (для сравнения)
+double exact(double t) {
+    return std::exp(t);  // y(t) = e^t
+}
+
+// Неявный 2-шаговый метод Адамса (Адамс-Моултон)
+void adam2_implicit(double y0, double t0, double tend, double h,
+                    int maxit, double tol,
+                    std::vector<double>& t, std::vector<double>& y) {
+    
+    int n = (int)((tend - t0) / h + 0.5);
+    t.resize(n + 1);
+    y.resize(n + 1);
+    
+    t[0] = t0;
+    y[0] = y0;
+    
+    // Старт явным методом Эйлера
+    double t1 = t0 + h;
+    double y1 = y0 + h * f(t0, y0);
+    t[1] = t1;
+    y[1] = y1;
+    
+    double fp = f(t0, y0);   // f_{n-1}
+    double fc = f(t1, y1);   // f_n
+    
+    for (int i = 1; i < n; ++i) {
+        double tn = t[i] + h;
+        
+        // Предиктор (явный Адамс-Башфорт)
+        double yn = y[i] + h / 2.0 * (3.0 * fc - fp);
+        
+        // Корректор (итерации)
+        for (int iter = 0; iter < maxit; ++iter) {
+            double fn = f(tn, yn);
+            double yn_new = y[i] + h / 12.0 * (5.0 * fn + 8.0 * fc - fp);
+            if (std::abs(yn_new - yn) < tol) {
+                yn = yn_new;
+                break;
+            }
+            yn = yn_new;
+        }
+        
+        t[i + 1] = tn;
+        y[i + 1] = yn;
+        
+        fp = fc;
+        fc = f(tn, yn);
+    }
+}
+
+int main() {
+    // ==================== ПАРАМЕТРЫ ЗАДАЧИ ====================
+    double t0 = 0.0;      // начальное время
+    double tend = 1.0;    // конечное время
+    double y0 = 1.0;      // начальное условие
+    double h = 0.1;       // шаг интегрирования
+    
+    int maxit = 20;       // максимальное число итераций
+    double tol = 1e-10;   // точность итераций
+    // ===========================================================
+    
+    std::vector<double> t, y;
+    adam2_implicit(y0, t0, tend, h, maxit, tol, t, y);
+    
+    // ========== ВЫВОД В CSV ДЛЯ EXCEL ==========
+    std::ofstream out("results.csv");
+    if (!out.is_open()) {
+        std::cerr << "Ошибка: не удалось создать файл results.csv" << std::endl;
+        return 1;
+    }
+    
+    // Заголовки столбцов (для Excel)
+    out << "t;Численное решение;Точное решение\n";
+    
+    for (size_t i = 0; i < t.size(); ++i) {
+        out << t[i] << ";" << y[i] << ";" << exact(t[i]) << "\n";
+    }
+    out.close();
+    // ============================================
+    
+    // ========== ВЫВОД ТАБЛИЦЫ В КОНСОЛЬ ==========
+    std::cout << std::fixed << std::setprecision(8);
+    std::cout << "t\t\tЧисленное\tТочное\t\tОшибка\n";
+    double max_err = 0.0;
+    
+    for (size_t i = 0; i < t.size(); ++i) {
+        double ex = exact(t[i]);
+        double err = std::abs(y[i] - ex);
+        if (err > max_err) max_err = err;
+        std::cout << t[i] << "\t\t" << y[i] << "\t\t" << ex << "\t\t" << err << "\n";
+    }
+    
+    std::cout << "\nМаксимальная ошибка: " << max_err << std::endl;
+    std::cout << "\nДанные для Excel сохранены в файл 'results.csv'" << std::endl;
+    std::cout << "Откройте файл в Excel через меню Данные -> Из текстового файла, выберите разделитель ';'" << std::endl;
+    
+    return 0;
+}
+
