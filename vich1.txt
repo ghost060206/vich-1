@@ -1,6 +1,107 @@
 https://cloud.mail.ru/public/HFuA/3fvw3cQmG/
 https://onedrive.live.com/:w:/g/personal/f1af8425b0a8f1d0/IQDsISWet1wkS45UxujQEunvAZjkRrJDjEtN--nwWFvrLNI?rtime=SFoGCpav3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3cvYy9mMWFmODQyNWIwYThmMWQwL0lRRHNJU1dldDF3a1M0NVV4dWpRRXVudkFaamtSckpEakV0Ti0tbndXRnZyTE5JP2U9OGRJbzhO
 
+%% ЗАДАНИЕ 1 (Массивы)
+clear; clc;
+
+% Ввод размера массива и массива A
+n = input('Введите размер массива n: ');
+A = input('Введите массив A (в квадратных скобках, например [1,2,3]): ');
+if length(A) ~= n
+    error('Длина A не совпадает с n');
+end
+
+% Формирование массива B
+B = zeros(1, n);
+for i = 1:n
+    B(i) = i * log(i^2) + sin(i);
+end
+
+% Сортировка по убыванию
+A_sorted = sort(A, 'descend');
+B_sorted = sort(B, 'descend');
+
+% Поэлементное деление
+C = A_sorted ./ B_sorted;
+
+% Произведение элементов C
+prod_C = prod(C);
+
+% Вывод результатов
+fprintf('\n--- Результат Задания 1 ---\n');
+fprintf('Отсортированный A: '); disp(A_sorted);
+fprintf('Отсортированный B: '); disp(B_sorted);
+fprintf('Массив C (A_sorted ./ B_sorted): '); disp(C);
+fprintf('Произведение элементов C: %g\n', prod_C);
+
+%% ЗАДАНИЕ 2 (Графики)
+figure;
+x = linspace(-2*pi, 2*pi, 1000);
+
+f1 = sin(x) .* exp(x);
+f2 = sin(x) .* x.^2;
+f3 = sin(x) .* x;
+f4 = sin(x) .* abs(x);
+
+plot(x, f1, 'r-', 'LineWidth', 1.5); hold on;
+plot(x, f2, 'g-', 'LineWidth', 1.5);
+plot(x, f3, 'b-', 'LineWidth', 1.5);
+plot(x, f4, 'm-', 'LineWidth', 1.5);
+grid on;
+legend('f1 = sin(x)*e^x', 'f2 = sin(x)*x^2', ...
+       'f3 = sin(x)*x', 'f4 = sin(x)*|x|', 'Location', 'best');
+xlabel('x'); ylabel('y');
+title('Графики функций (Задание 2)');
+hold off;
+
+%% ЗАДАНИЕ 3 (Уравнение)
+% Принято: f1(x) = x + sin(x),   f2(x) = 3*|x| + 5*|x-2|
+f1 = @(x) x + sin(x);
+f2 = @(x) 3*abs(x) + 5*abs(x-2);
+F = @(x) f1(x) - f2(x);   % функция, корни которой ищем
+
+% Интервал поиска (визуально определяем возможные пересечения)
+x_plot = linspace(-5, 5, 2000);
+figure;
+plot(x_plot, f1(x_plot), 'b-', 'LineWidth', 1.5); hold on;
+plot(x_plot, f2(x_plot), 'r--', 'LineWidth', 1.5);
+grid on;
+legend('f1(x) = x+sin(x)', 'f2(x) = 3|x|+5|x-2|', 'Location', 'best');
+xlabel('x'); ylabel('y');
+title('Графики функций (Задание 3)');
+
+% Поиск корней методом сканирования и fzero
+tol = 1e-8;
+x_roots = [];
+step = 0.05;
+x_candidates = -5:step:5;
+for i = 1:length(x_candidates)-1
+    a = x_candidates(i);
+    b = x_candidates(i+1);
+    if F(a)*F(b) < 0
+        root = fzero(F, [a, b]);
+        x_roots = [x_roots, root];
+    end
+end
+% Удаление возможных дубликатов
+x_roots = unique(round(x_roots, 8));
+
+% Вывод корней
+fprintf('\n--- Результат Задания 3 ---\n');
+if isempty(x_roots)
+    fprintf('Корней уравнения f1(x)=f2(x) не найдено.\n');
+else
+    fprintf('Найденные корни (x):\n');
+    for r = x_roots
+        fprintf('x = %g   (f1-f2 = %g)\n', r, F(r));
+    end
+    % Отметим корни на графике
+    plot(x_roots, f1(x_roots), 'ko', 'MarkerSize', 8, 'LineWidth', 1.5);
+end
+hold off;
+
+
+
 
 
 
