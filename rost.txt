@@ -1,0 +1,104 @@
+%% Лабораторная 1: рост людей — MATLAB R2014
+clear; clc; close all;
+
+TERMS = {'Низкий','Средний','Высокий'};
+INTERVALS = {'150-160','160-170','170-180','180-190','190-200','200-210'};
+COLORS = {[0.086 0.502 0.329],[0.906 0.502 0.086],[0.847 0.239 0.282]};
+SLUGS  = {'nizkiy','sredniy','visokiy'};
+N = 6;
+
+%% ---------- Данные ----------
+
+% Метод 1: 5 экспертов × 3 терма × 6 интервалов (1 — выбран, 0 — нет)
+E = zeros(5,3,6);
+E(1,:,:) = [1 1 0 0 0 0; 0 0 1 1 0 0; 0 0 0 0 1 1];
+E(2,:,:) = [1 0 0 0 0 0; 0 1 1 1 0 0; 0 0 0 0 1 1];
+E(3,:,:) = [1 1 0 0 0 0; 0 0 1 1 0 0; 0 0 0 0 1 1];
+E(4,:,:) = [1 0 0 0 0 0; 0 1 1 1 0 0; 0 0 0 0 1 1];
+E(5,:,:) = [1 0 0 0 0 0; 0 1 1 1 1 0; 0 0 0 0 0 1];
+
+% Метод 2: матрицы Саати 6×6 для трёх термов
+Mlow  = [1 3 5 7 9 9; 1/3 1 2 4 6 8; 1/5 1/2 1 2 4 6;
+         1/7 1/4 1/2 1 2 4; 1/9 1/6 1/4 1/2 1 2; 1/9 1/8 1/6 1/4 1/2 1];
+Mmid  = [1 .5 .2 1/7 1/3 2; 2 1 1/3 .2 .5 2; 5 3 1 1 2 4;
+         7 5 1 1 3 6; 3 2 .5 1/3 1 3; .5 .5 .25 1/6 1/3 1];
+Mhigh = [1 .5 1/3 .2 1/7 1/9; 2 1 .5 .25 1/6 .125; 3 2 1 .5 1/3 1/6;
+         5 4 2 1 .5 .25; 7 6 3 2 1 .5; 9 8 6 4 2 1];
+MATS = {Mlow, Mmid, Mhigh};
+
+%% ---------- Метод 2: собственные векторы ----------
+fprintf('\n===== МЕТОД 2 (Саати) =====\n');
+memberships = zeros(N,3);
+
+for t = 1:3
+    A = MATS{t};
+    [V,D] = eig(A);
+    ev = diag(D);
+    [~,idx] = max(real(ev));
+    lmax = real(ev(idx));
+    v = real(V(:,idx));
+    if sum(v) < 0, v = -v; end
+    w = v / sum(v);
+    mu = w / max(w);
+    memberships(:,t) = mu;
+    resid = max(abs(A*w - lmax*w));
+
+    fprintf('\n%s: lambda_max = %.6f,  lambda_max-6 = %.6f\n', ...
+            upper(TERMS{t}), lmax, lmax-N);
+    fprintf('  Интервал      W          mu\n');
+    for i=1:N
+        fprintf('  %-10s %9.6f  %9.6f\n', INTERVALS{i}, w(i), mu(i));
+    end
+    fprintf('  Проверка A*W = lmax*W: макс. ошибка %.2e\n', resid);
+end
+
+%% ---------- Метод 1: доли голосов ----------
+fprintf('\n===== МЕТОД 1 (эксперты) =====\n');
+mu_exp = squeeze(mean(E,1));
+fprintf('  Интервал      Низкий   Средний  Высокий\n');
+for i=1:6
+    fprintf('  %-10s %7.3f %8.3f %8.3f\n', ...
+            INTERVALS{i}, mu_exp(1,i), mu_exp(2,i), mu_exp(3,i));
+end
+
+%% ---------- Графики ----------
+x = 0:N-1;
+
+% Общий график метода Саати
+figure('Position',[100 100 1100 550]); hold on;
+h = zeros(1,3);
+for t=1:3
+    h(t) = plot(x, memberships(:,t), '-o','LineWidth',2,'Color',COLORS{t});
+end
+hold off; grid on; box on;
+set(gca,'XTick',x,'XTickLabel',INTERVALS,'YLim',[0 1.05],'FontSize',11);
+xlabel('Интервал роста, см'); ylabel('Степень принадлежности');
+title('Функции принадлежности по методу Саати (рост)');
+legend(h, TERMS, 'Location','best');
+print(gcf,'-dpng','-r180','grafik_saaty_rost_obshchii.png');
+
+% Индивидуальные графики
+for t=1:3
+    figure('Position',[100 100 1000 500]);
+    plot(x, memberships(:,t), '-o','LineWidth',2,'Color',COLORS{t});
+    grid on; box on;
+    set(gca,'XTick',x,'XTickLabel',INTERVALS,'YLim',[0 1.05],'FontSize',11);
+    xlabel('Интервал роста, см'); ylabel('Степень принадлежности');
+    title(sprintf('%s: функция принадлежности (Саати)', TERMS{t}));
+    print(gcf,'-dpng','-r180', sprintf('grafik_saaty_rost_%s.png', SLUGS{t}));
+end
+
+% График метода экспертов
+figure('Position',[100 100 1100 550]); hold on;
+h = zeros(1,3);
+for t=1:3
+    h(t) = plot(x, mu_exp(t,:), '-o','LineWidth',2,'Color',COLORS{t});
+end
+hold off; grid on; box on;
+set(gca,'XTick',x,'XTickLabel',INTERVALS,'YLim',[0 1.05],'FontSize',11);
+xlabel('Рост человека, см'); ylabel('Степень принадлежности');
+title('Функции принадлежности по оценкам экспертов (рост)');
+legend(h, TERMS, 'Location','best');
+print(gcf,'-dpng','-r180','grafik_expertov_rost.png');
+
+fprintf('\nГотово! PNG-файлы сохранены в текущей папке.\n');
